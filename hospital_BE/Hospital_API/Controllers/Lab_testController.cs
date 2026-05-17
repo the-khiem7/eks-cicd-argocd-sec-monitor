@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Hospital_API.Filters;
 using Hospital_API.Interfaces;
 using Hospital_API.DTOs;
 using System.Threading.Tasks;
@@ -6,6 +7,8 @@ namespace Hospital_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RedisCache("lab-test", 300)]
+    [RedisCacheEvict("lab-test")]
     public class LabTestController : ControllerBase
     {
         private readonly ILabTestService _labTestService;

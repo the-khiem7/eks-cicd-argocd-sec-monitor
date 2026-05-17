@@ -2,12 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Hospital_API.DTOs;
+using Hospital_API.Filters;
 using Hospital_API.Interfaces;
 
 namespace Hospital_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RedisCache("branch", 300)]
+    [RedisCacheEvict("branch")]
     public class BranchController : ControllerBase
     {
         private readonly IBranchService _service;

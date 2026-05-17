@@ -1,4 +1,5 @@
 using Hospital_API.Interfaces;
+using Hospital_API.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Hospital_API.Models;
 using Hospital_API.DTOs;
@@ -6,6 +7,8 @@ namespace Hospital_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [RedisCache("medical-service", 300)]
+    [RedisCacheEvict("medical-service")]
     public class MedicalServiceController : ControllerBase
     {
         private readonly IMedServiceService _medicinesService;

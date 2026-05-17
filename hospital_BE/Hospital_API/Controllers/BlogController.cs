@@ -1,4 +1,5 @@
 using Hospital_API.DTOs;
+using Hospital_API.Filters;
 using Hospital_API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace Hospital_API.Controllers
         }
 
         [HttpGet]
+        [RedisCache("blog", 300)]
         public async Task<ActionResult<IEnumerable<BlogDTO>>> GetAllBlogs()
         {
             var blogs = await _blogService.GetAllAsync();
@@ -35,6 +37,7 @@ namespace Hospital_API.Controllers
         }
 
         [HttpGet("{id}")]
+        [RedisCache("blog", 300)]
         public async Task<ActionResult<BlogDTO>> GetBlogById(int id)
         {
             var blog = await _blogService.GetByIdAsync(id);
@@ -45,6 +48,7 @@ namespace Hospital_API.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
+        [RedisCacheEvict("blog")]
         public async Task<ActionResult<BlogDTO>> CreateBlog([FromForm] BlogCreateDTO blogCreateDto)
         {
             var blog = await _blogService.CreateAsync(blogCreateDto);
@@ -53,6 +57,7 @@ namespace Hospital_API.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
+        [RedisCacheEvict("blog")]
         public async Task<ActionResult<BlogDTO>> UpdateBlog(int id, [FromForm] BlogUpdateDTO blogUpdateDto)
         {
             var blog = await _blogService.UpdateAsync(id, blogUpdateDto);
@@ -63,6 +68,7 @@ namespace Hospital_API.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
+        [RedisCacheEvict("blog")]
         public async Task<ActionResult> DeleteBlog(int id)
         {
             var result = await _blogService.DeleteAsync(id);

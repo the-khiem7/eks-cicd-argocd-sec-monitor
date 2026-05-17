@@ -151,7 +151,10 @@ DTOs/
  UserRoleDTO.cs
  UserUpdateDTO.cs
  WaitingListDTO.cs
-Filters/SwaggerFileOperationFilter.cs
+Filters/
+ RedisCacheAttribute.cs
+ RedisCacheEvictAttribute.cs
+ SwaggerFileOperationFilter.cs
 Interfaces/
  IAppointmentRepository.cs
  IAppointmentService.cs
