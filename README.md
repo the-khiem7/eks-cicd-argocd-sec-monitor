@@ -238,7 +238,6 @@ The pipeline runs on pushes to:
 
 ```text
 main
-devops
 ```
 
 The pipeline skips commits containing:
@@ -639,7 +638,7 @@ Before rerunning the workflow, confirm:
 
 ## Expected Result
 
-When everything is configured correctly, a push to `main` or `devops` should produce this delivery chain:
+When everything is configured correctly, a push to `main` should produce this delivery chain:
 
 ```text
 Source code -> Build -> Security gates -> Nexus artifacts -> EC2 image build

@@ -43,11 +43,11 @@ Examples:
 
 ```mermaid
 flowchart LR
-    git[Git repository<br/>branch devops] --> app[Argo CD Application]
-    app --> path[k8s/base]
+    git[Git repository<br/>branch main] --> app[Argo CD Application]
+    app --> path[k8s/overlays/prod]
     path --> sync[Automated sync]
     sync --> ns1[namespace traefik]
-    sync --> ns2[namespace hospital]
+    sync --> ns2[namespace hospital-prod]
     ns1 --> traefik[Traefik Gateway]
     ns2 --> workloads[Frontend and backend workloads]
 ```
@@ -56,11 +56,11 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    git[Git repository<br/>branch devops] --> argocd[Argo CD<br/>namespace argocd]
+    git[Git repository<br/>branch main] --> argocd[Argo CD<br/>namespace argocd]
 
     argocd --> app[hospital-traefik-app]
-    app --> appPath[k8s/base]
-    appPath --> hospitalNs[namespace hospital]
+    app --> appPath[k8s/overlays/prod]
+    appPath --> hospitalNs[namespace hospital-prod]
     appPath --> traefikNs[namespace traefik]
     hospitalNs --> fe[Frontend pods]
     hospitalNs --> be[Backend API pods]
@@ -130,10 +130,10 @@ k8s/security and k8s/monitoring       = configure those tools after they exist
 | Setting | Value |
 |---|---|
 | Repository | `https://github.com/Kien-devops/eks-cicd-argocd-sec-monitor.git` |
-| Target revision | `devops` |
-| Manifest path | `k8s/base` |
+| Target revision | `main` |
+| Manifest path | `k8s/overlays/prod` |
 | Destination server | `https://kubernetes.default.svc` |
-| Destination namespace | `hospital` |
+| Destination namespace | `hospital-prod` |
 | Automated sync | Enabled |
 | Prune | Enabled |
 | Self-heal | Enabled |
