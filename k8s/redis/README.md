@@ -6,13 +6,14 @@ This folder deploys Redis for the `hospital-prod` namespace.
 
 ```mermaid
 flowchart TB
-    backend[Backend Pods] -->|Redis client traffic| primarySvc[Redis Primary Service<br/>redis-primary:6379]
+    backend[Backend Pods] -->|Sentinel-aware Redis client| sentinelSvc[Redis Sentinel Service<br/>redis-sentinel:26379]
+    backend -. discovers current master<br/>serviceName=mymaster .-> primarySvc[Redis Primary Service<br/>redis-primary:6379]
 
     primarySvc --> primary[Redis Primary<br/>redis-0]
     primary -->|async replication| replica1[Redis Replica<br/>redis-1]
     primary -->|async replication| replica2[Redis Replica<br/>redis-2]
 
-    sentinelSvc[Redis Sentinel Service<br/>redis-sentinel:26379] --> sentinelPods[Redis Sentinel Pods]
+    sentinelSvc --> sentinelPods[Redis Sentinel Pods]
     sentinelPods -. monitor + failover .-> primary
     sentinelPods -. monitor + failover .-> replica1
     sentinelPods -. monitor + failover .-> replica2
@@ -32,7 +33,7 @@ flowchart TB
     backup --> s3[(S3)]
 ```
 
-Sentinel-aware clients should connect to `redis-sentinel:26379` and discover the current primary named `mymaster`. Simple clients can use `redis-primary:6379`, but failover handling depends on client reconnect behavior.
+Sentinel-aware clients should connect to `redis-sentinel:26379` with `serviceName=mymaster`. Simple clients can use `redis-primary:6379`, but failover handling depends on client reconnect behavior.
 
 ## Files
 
@@ -129,8 +130,7 @@ redis-primary.hospital-prod.svc.cluster.local:6379
 For Sentinel-aware clients:
 
 ```text
-Sentinel service: redis-sentinel.hospital-prod.svc.cluster.local:26379
-Master name: mymaster
+redis-sentinel.hospital-prod.svc.cluster.local:26379,serviceName=mymaster,password=<strong-password>,abortConnect=false
 ```
 
 Sentinel-aware clients are preferred for failover behavior.
@@ -148,7 +148,7 @@ Create the backend Redis secret before rolling out the backend:
 ```bash
 kubectl create secret generic be-redis-secret \
   -n hospital-prod \
-  --from-literal=connection-string='redis-primary.hospital-prod.svc.cluster.local:6379,password=<strong-password>,abortConnect=false' \
+  --from-literal=connection-string='redis-sentinel.hospital-prod.svc.cluster.local:26379,serviceName=mymaster,password=<strong-password>,abortConnect=false' \
   --dry-run=client -o yaml | kubectl apply -f -
 ```
 
