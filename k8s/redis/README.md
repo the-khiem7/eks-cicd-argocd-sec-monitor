@@ -190,6 +190,8 @@ redis_master_link_up
 
 `70-redis-backup-cronjob.example.yaml` is intentionally not included in `kustomization.yaml`.
 
+The example uses `example.com/redis-backup-tools:latest` as a placeholder image. Build or replace it with an image that already contains both `redis-cli` and `aws` CLI. Do not install packages at runtime if the container uses a read-only root filesystem.
+
 To enable it, create a secret for S3 first:
 
 ```bash

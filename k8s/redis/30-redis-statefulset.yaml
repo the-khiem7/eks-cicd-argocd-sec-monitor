@@ -26,6 +26,12 @@ spec:
         - name: redis
           image: redis:7.4-alpine
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command:
             - sh
             - /opt/redis/redis-start.sh
@@ -74,10 +80,18 @@ spec:
               mountPath: /data
             - name: redis-config
               mountPath: /opt/redis
+            - name: tmp
+              mountPath: /tmp
 
         - name: sentinel
           image: redis:7.4-alpine
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command:
             - sh
             - /opt/redis/sentinel-start.sh
@@ -120,10 +134,18 @@ spec:
           volumeMounts:
             - name: redis-config
               mountPath: /opt/redis
+            - name: tmp
+              mountPath: /tmp
 
         - name: redis-exporter
           image: oliver006/redis_exporter:v1.66.0
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: REDIS_ADDR
               value: redis://localhost:6379
@@ -159,6 +181,8 @@ spec:
           configMap:
             name: redis-config
             defaultMode: 0755
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: redis-data
