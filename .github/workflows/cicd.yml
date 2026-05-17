@@ -347,6 +347,9 @@ jobs:
 
           cat > "$ARTIFACT_DIR/Dockerfile.backend" <<'DOCKERFILE'
           FROM mcr.microsoft.com/dotnet/aspnet:9.0
+          RUN apt-get update && \
+              apt-get upgrade -y && \
+              rm -rf /var/lib/apt/lists/*
           WORKDIR /app
           ENV ASPNETCORE_URLS=http://+:8080
           COPY backend/ .
