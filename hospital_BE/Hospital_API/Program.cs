@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Globalization;
@@ -151,6 +152,21 @@ builder.Services.AddDirectoryBrowser();
 builder.Services.AddDbContext<HospitalDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
+
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "hospital:";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
 //add service Role
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IRoleService, RoleService>();
@@ -284,6 +300,32 @@ app.UseAuthorization();
 app.UseHttpsRedirection();
 app.MapControllers();
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/healthz/redis", async (IDistributedCache cache, CancellationToken cancellationToken) =>
+{
+    const string cacheKey = "healthz:redis";
+    var cacheValue = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+
+    try
+    {
+        await cache.SetStringAsync(
+            cacheKey,
+            cacheValue,
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1)
+            },
+            cancellationToken);
+
+        var storedValue = await cache.GetStringAsync(cacheKey, cancellationToken);
+        return storedValue == cacheValue
+            ? Results.Ok(new { status = "ok", cache = "redis" })
+            : Results.Problem("Redis cache read/write check failed.", statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 // Thêm sau app.UseRouting()
 // app.UseStaticFiles(); // Cho phép truy cập static files // Moved to top

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/part-of: hospital
+data:
+  redis-start.sh: |
+    #!/bin/sh
+    set -eu
+
+    REDIS_CONF="/tmp/redis.conf"
+    INITIAL_MASTER="redis-0.redis-headless.${POD_NAMESPACE}.svc.cluster.local"
+
+    cat > "${REDIS_CONF}" <<EOF
+    bind 0.0.0.0
+    protected-mode no
+    port 6379
+    dir /data
+    appendonly yes
+    requirepass ${REDIS_PASSWORD}
+    masterauth ${REDIS_PASSWORD}
+    EOF
+
+    if [ "${POD_NAME}" != "redis-0" ]; then
+      until redis-cli -h "${INITIAL_MASTER}" -a "${REDIS_PASSWORD}" ping >/dev/null 2>&1; do
+        echo "Waiting for initial Redis primary ${INITIAL_MASTER}"
+        sleep 2
+      done
+      echo "replicaof ${INITIAL_MASTER} 6379" >> "${REDIS_CONF}"
+    fi
+
+    exec redis-server "${REDIS_CONF}"
+
+  sentinel-start.sh: |
+    #!/bin/sh
+    set -eu
+
+    SENTINEL_CONF="/tmp/sentinel.conf"
+    INITIAL_MASTER="redis-0.redis-headless.${POD_NAMESPACE}.svc.cluster.local"
+
+    cat > "${SENTINEL_CONF}" <<EOF
+    port 26379
+    bind 0.0.0.0
+    protected-mode no
+    dir /tmp
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes
+    sentinel monitor mymaster ${INITIAL_MASTER} 6379 2
+    sentinel auth-pass mymaster ${REDIS_PASSWORD}
+    sentinel down-after-milliseconds mymaster 5000
+    sentinel failover-timeout mymaster 60000
+    sentinel parallel-syncs mymaster 1
+    EOF
+
+    exec redis-server "${SENTINEL_CONF}" --sentinel

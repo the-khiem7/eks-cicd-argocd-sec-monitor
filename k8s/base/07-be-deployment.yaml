@@ -66,6 +66,11 @@ spec:
                 secretKeyRef:
                   name: be-db-secret
                   key: default-connection
+            - name: ConnectionStrings__Redis
+              valueFrom:
+                secretKeyRef:
+                  name: be-redis-secret
+                  key: connection-string
 
           ports:
             - containerPort: 8080
