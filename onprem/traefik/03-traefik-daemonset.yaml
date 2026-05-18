@@ -15,10 +15,23 @@ spec:
         app: traefik
     spec:
       serviceAccountName: traefik
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: traefik
           image: traefik:v3.1
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           args:
             - --log.level=INFO
             - --api.dashboard=false
@@ -32,6 +45,9 @@ spec:
               containerPort: 8000
             - name: traefik
               containerPort: 8080
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           readinessProbe:
             httpGet:
               path: /ping
@@ -44,3 +60,6 @@ spec:
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: {}
