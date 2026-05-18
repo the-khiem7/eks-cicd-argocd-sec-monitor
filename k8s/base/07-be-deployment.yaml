@@ -71,6 +71,15 @@ spec:
                 secretKeyRef:
                   name: be-redis-secret
                   key: connection-string
+            - name: Jwt__Secret
+              valueFrom:
+                secretKeyRef:
+                  name: be-jwt-secret
+                  key: secret
+            - name: Jwt__Issuer
+              value: HospitalAPI
+            - name: Jwt__Audience
+              value: HospitalClient
 
           ports:
             - containerPort: 8080
