@@ -11,7 +11,7 @@ replicas:
   - name: fe-deployment-v1
     count: 3
   - name: be-deployment-v1
-    count: 3
+    count: 6
 
 images:
   - name: 606030503959.dkr.ecr.us-east-1.amazonaws.com/ecr-fe

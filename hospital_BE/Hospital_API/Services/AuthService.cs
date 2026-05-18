@@ -41,11 +41,6 @@ namespace Hospital_API.Services
             // 4. Tạo token
             var token = GenerateJwtToken(user, roles, out DateTime expiredAt);
 
-            // Optional: Lưu lại token (nếu bạn muốn quản lý token)
-            user.Token = token;
-            user.TokenExpired = expiredAt;
-            await _authRepository.SaveChangesAsync(); // Nếu bạn inject DbContext
-
             return new AuthResponseDTO
             {
                 UserId = user.Id,
