@@ -13,6 +13,8 @@ This folder contains the Kubernetes runtime manifests deployed by Argo CD.
 
 The `k8s/` folder is the runtime layer. It contains resources that run in, or configure things inside, the Kubernetes cluster. Argo CD Application manifests live in `argocd/`.
 
+![Kubernetes runtime overview](./image.png)
+
 ## Learning Map
 
 | Topic | Where it appears |

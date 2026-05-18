@@ -10,6 +10,8 @@
 
 This folder contains the security servers and scan tooling used by the Hospital EKS GitOps platform.
 
+![DevSecOps security tooling overview](./image.png)
+
 ## Learning Map
 
 | Topic | Tool |

@@ -13,6 +13,8 @@ This folder contains Argo CD `Application` manifests. These files tell Argo CD w
 
 Argo CD is the desired-state controller for the cluster. Git is the source of truth, and manual cluster changes may be reverted when self-heal is enabled.
 
+![Argo CD GitOps overview](./image.png)
+
 ## Folder Responsibility
 
 ```text
