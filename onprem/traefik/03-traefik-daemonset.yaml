@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  selector:
+    matchLabels:
+      app: traefik
+  template:
+    metadata:
+      labels:
+        app: traefik
+    spec:
+      serviceAccountName: traefik
+      containers:
+        - name: traefik
+          image: traefik:v3.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --log.level=INFO
+            - --api.dashboard=false
+            - --ping=true
+            - --providers.kubernetesgateway=true
+            - --providers.kubernetescrd=true
+            - --entrypoints.web.address=:8000
+            - --entrypoints.web.forwardedHeaders.insecure=true
+          ports:
+            - name: web
+              containerPort: 8000
+            - name: traefik
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

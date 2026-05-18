@@ -6,3 +6,5 @@ resources:
   - 07-be-deployment.yaml
   - 08-be-service.yaml
   - 10-network-policy.yaml
+  - 11-fe-hpa.yaml
+  - 12-be-hpa.yaml

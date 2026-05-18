@@ -1,0 +1,4 @@
+.env
+haproxy.cfg
+certs/*.pem
+!certs/.gitkeep

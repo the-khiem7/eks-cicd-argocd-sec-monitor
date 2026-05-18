@@ -180,6 +180,7 @@ This repository separates GitOps installation files from Kubernetes runtime conf
 argocd/* = tells Argo CD what to install or sync
 k8s/*    = Kubernetes resources used by the app and cluster tools
 security/* = local/CI security services and notes outside the EKS runtime path
+onprem/* = optional on-prem ingress path using Traefik NodePort and HAProxy
 ```
 
 Examples:
@@ -194,12 +195,14 @@ Examples:
 | `k8s/security/` | Security namespace and Kyverno policies used after Kyverno is installed. |
 | `k8s/monitoring/` | Monitoring namespace and Prometheus alert rules used after Prometheus Operator is installed. |
 | `k8s/logging/` | Logging namespace and Grafana Loki datasource used after Loki is installed. |
+| `onprem/` | On-premise alternative to AWS ALB using HAProxy in front of Traefik NodePort. |
 
 In short:
 
 ```text
 argocd/ = install and manage
 k8s/    = run and configure
+onprem/ = expose an on-prem cluster without AWS ALB
 ```
 
 This split is intentional for learning:
@@ -226,6 +229,7 @@ This split is intentional for learning:
 |-- argocd/security/          # Argo CD Applications for Kyverno, Trivy Operator, and Falco
 |-- argocd/monitoring/        # Argo CD Applications for Prometheus, Grafana, and Alertmanager
 |-- argocd/logging/           # Argo CD Applications for Loki and Promtail
+|-- onprem/                   # HAProxy + Traefik NodePort path for on-prem clusters
 |-- terraform/                # AWS network and EKS infrastructure as code
 |-- security/                 # SonarQube, Nexus, Trivy, and hardening notes
 |-- .github/workflows/        # GitHub Actions DevSecOps pipeline
@@ -663,6 +667,8 @@ Before rerunning the workflow, confirm:
 | `terraform/environments/prod/README.md` | Production-oriented Terraform setup. |
 | `k8s/README.md` | Kubernetes manifests, namespace, services, and secrets. |
 | `argocd/README.md` | GitOps deployment with Argo CD. |
+| `onprem/README.md` | On-prem HAProxy ALB deployment path for non-EKS clusters. |
+| `onprem/haproxy/README.md` | HAProxy edge load balancer setup, TLS, reload, and troubleshooting. |
 | `hospital_FE/README.md` | Frontend React/Vite/nginx notes. |
 | `hospital_BE/README.md` | Backend ASP.NET Core notes. |
 
