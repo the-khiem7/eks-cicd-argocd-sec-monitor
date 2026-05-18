@@ -65,6 +65,14 @@ namespace Hospital_API.Data
             modelBuilder.Entity<UserRole>()
                 .HasKey(ur => new { ur.UserId, ur.RoleId });
 
+            modelBuilder.Entity<User>()
+                .Property(u => u.Username)
+                .HasMaxLength(100);
+
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
             modelBuilder.Entity<UserRole>()
                 .HasOne(ur => ur.User)
                 .WithMany(u => u.UserRoles)

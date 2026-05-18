@@ -17,8 +17,10 @@ namespace Hospital_API.Repositories
         public async Task<User?> GetUserByUsernameAsync(string username)
         {
             return await _context.Users
+                .AsNoTracking()
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(u => u.Username == username);
         }
         public async Task CreateUserAsync(User user)
