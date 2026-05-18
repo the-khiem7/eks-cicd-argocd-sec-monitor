@@ -8,6 +8,7 @@
 ![Falco](https://img.shields.io/badge/Falco-Runtime%20Detection-00AEC7)
 ![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white)
+![Loki](https://img.shields.io/badge/Loki-Logs-F46800?logo=grafana&logoColor=white)
 
 This guide starts from a newly created EKS cluster where only the worker nodes are ready.
 
@@ -20,6 +21,7 @@ EKS access
 -> hospital app
 -> security stack
 -> monitoring stack
+-> logging stack
 -> UI access and verification
 ```
 
@@ -137,6 +139,14 @@ kubectl apply -f argocd/monitoring/10-kube-prometheus-stack-app.yaml
 kubectl apply -f argocd/monitoring/20-monitoring-rules-app.yaml
 ```
 
+Apply the logging stack:
+
+```powershell
+kubectl apply -f argocd/logging/10-loki-app.yaml
+kubectl apply -f argocd/logging/20-promtail-app.yaml
+kubectl apply -f argocd/logging/30-logging-config-app.yaml
+```
+
 ## 6. Verify Argo CD Sync
 
 ```powershell
@@ -150,6 +160,7 @@ Check runtime namespaces:
 kubectl get pods -n hospital-prod
 kubectl get pods -n security
 kubectl get pods -n monitoring
+kubectl get pods -n logging
 ```
 
 Check security resources:
@@ -166,6 +177,15 @@ Check monitoring resources:
 kubectl get prometheus,alertmanager -n monitoring
 kubectl get prometheusrule -n monitoring
 kubectl get servicemonitor -A
+```
+
+Check logging resources:
+
+```powershell
+kubectl get pods -n logging
+kubectl get svc -n logging
+kubectl get configmap -n monitoring loki-grafana-datasource
+kubectl logs -n logging -l app.kubernetes.io/name=promtail --tail=100
 ```
 
 ## 7. Access Argo CD UI
@@ -224,6 +244,16 @@ username: admin
 password: <password-from-command>
 ```
 
+Open Grafana Explore and choose the `Loki` datasource.
+
+Useful LogQL:
+
+```logql
+{namespace="hospital-prod"}
+{namespace="hospital-prod"} |= "error"
+{namespace="security"} |= "falco"
+```
+
 ## 9. Useful Debug Commands
 
 Application pods:
@@ -261,7 +291,73 @@ kubectl get svc -n monitoring
 kubectl get prometheusrule -n monitoring
 ```
 
-## 10. Common Issues
+Logging:
+
+```powershell
+kubectl get pods -n logging
+kubectl get svc -n logging
+kubectl logs -n logging -l app.kubernetes.io/name=loki --tail=100
+kubectl logs -n logging -l app.kubernetes.io/name=promtail --tail=100
+```
+
+## 10. Loki S3 Storage Plan
+
+The default Loki setup stores logs on local filesystem storage so the dev cluster can start quickly. For long-lived logs, move Loki storage to S3.
+
+Target design:
+
+```text
+Promtail
+-> Loki
+-> S3 buckets for chunks, ruler, and admin data
+-> Grafana queries Loki
+```
+
+AWS resources to create before switching Loki to S3:
+
+```text
+S3 buckets: hospital-dev-loki-chunks-<account-id>, hospital-dev-loki-ruler-<account-id>, hospital-dev-loki-admin-<account-id>
+Bucket encryption: SSE-S3 or SSE-KMS
+Block public access: enabled
+Lifecycle expiration: 7-30 days for dev, 30-90 days for production
+IAM policy: ListBucket/GetObject/PutObject/DeleteObject scoped to those buckets
+IRSA role: attached to Loki service account
+```
+
+After those resources exist, update `argocd/logging/10-loki-app.yaml`:
+
+```yaml
+loki:
+  storage:
+    type: s3
+    bucketNames:
+      chunks: <loki-chunks-bucket>
+      ruler: <loki-ruler-bucket>
+      admin: <loki-admin-bucket>
+    s3:
+      region: <aws-region>
+  storage_config:
+    aws:
+      region: <aws-region>
+      bucketnames: <loki-chunks-bucket>
+      s3forcepathstyle: false
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: s3
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/<loki-irsa-role-name>
+```
+
+Keep this change in Git and let Argo CD resync Loki.
+
+## 11. Common Issues
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -272,12 +368,17 @@ kubectl get prometheusrule -n monitoring
 | Argo app `Degraded` | Pod, CRD, or Helm chart issue. | Describe the Application and check namespace pod events. |
 | Monitoring rules fail to apply | Prometheus Operator CRDs not ready yet. | Wait for `kube-prometheus-stack`, then re-apply `20-monitoring-rules-app.yaml`. |
 | Kyverno policies fail to apply | Kyverno CRDs not ready yet. | Wait for Kyverno pods, then re-apply `00-security-namespace-policies-app.yaml`. |
+| Loki datasource missing in Grafana | Grafana sidecar has not reloaded datasource ConfigMaps yet. | Restart Grafana or wait for the sidecar to pick up `loki-grafana-datasource`. |
+| Promtail running but no logs in Loki | Loki gateway service is not ready or Promtail cannot push. | Check `kubectl get svc -n logging` and Promtail logs. |
 
-## 11. Cleanup Commands
+## 12. Cleanup Commands
 
 Delete Argo CD Applications only:
 
 ```powershell
+kubectl delete -f argocd/logging/30-logging-config-app.yaml
+kubectl delete -f argocd/logging/20-promtail-app.yaml
+kubectl delete -f argocd/logging/10-loki-app.yaml
 kubectl delete -f argocd/monitoring/20-monitoring-rules-app.yaml
 kubectl delete -f argocd/monitoring/10-kube-prometheus-stack-app.yaml
 kubectl delete -f argocd/security/30-falco-app.yaml

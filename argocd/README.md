@@ -6,6 +6,7 @@
 ![YAML](https://img.shields.io/badge/YAML-Manifests-CB171E?logo=yaml&logoColor=white)
 ![Helm](https://img.shields.io/badge/Helm-Charts-0F1689?logo=helm&logoColor=white)
 ![Prometheus](https://img.shields.io/badge/Prometheus-GitOps%20Managed-E6522C?logo=prometheus&logoColor=white)
+![Loki](https://img.shields.io/badge/Loki-GitOps%20Managed-F46800?logo=grafana&logoColor=white)
 ![Kyverno](https://img.shields.io/badge/Kyverno-Policy%20as%20Code-326CE5?logo=kubernetes&logoColor=white)
 
 This folder contains Argo CD `Application` manifests. These files tell Argo CD what to install or sync into the EKS cluster.
@@ -28,14 +29,17 @@ Examples:
 | `security/00-security-namespace-policies-app.yaml` | Syncs Kyverno policies. | `k8s/security` |
 | `monitoring/10-kube-prometheus-stack-app.yaml` | Installs Prometheus, Grafana, and Alertmanager from Helm. | `monitoring` namespace |
 | `monitoring/20-monitoring-rules-app.yaml` | Syncs Prometheus alert rules. | `k8s/monitoring` |
+| `logging/10-loki-app.yaml` | Installs Loki from Helm. | `logging` namespace |
+| `logging/20-promtail-app.yaml` | Installs Promtail from Helm. | `logging` namespace |
+| `logging/30-logging-config-app.yaml` | Syncs Loki datasource config. | `k8s/logging` |
 
 ## Learning Map
 
 | Concept | Local example |
 |---|---|
-| App of apps mindset | Security and monitoring are represented as separate Argo CD Applications. |
-| Helm through Argo CD | `security/*-app.yaml` and `monitoring/10-kube-prometheus-stack-app.yaml`. |
-| Kustomize through Argo CD | `hospital-traefik-app.yaml`, `security-namespace-policies`, and `monitoring-rules`. |
+| App of apps mindset | Security, monitoring, and logging are represented as separate Argo CD Applications. |
+| Helm through Argo CD | `security/*-app.yaml`, `monitoring/10-kube-prometheus-stack-app.yaml`, and `logging/*-app.yaml`. |
+| Kustomize through Argo CD | `hospital-traefik-app.yaml`, `security-namespace-policies`, `monitoring-rules`, and `logging-config`. |
 | Self-healing | Application specs use `syncPolicy.automated.selfHeal`. |
 | Drift control | Application specs use `syncPolicy.automated.prune`. |
 
@@ -72,6 +76,9 @@ flowchart TB
     argocd --> policyApp[security-namespace-policies app]
     argocd --> promApp[kube-prometheus-stack app<br/>Helm chart]
     argocd --> ruleApp[monitoring-rules app]
+    argocd --> lokiApp[loki app<br/>Helm chart]
+    argocd --> promtailApp[promtail app<br/>Helm chart]
+    argocd --> loggingConfigApp[logging-config app]
 
     kyvernoApp --> securityNs[namespace security]
     trivyApp --> securityNs
@@ -89,12 +96,20 @@ flowchart TB
     monitoringNs --> prometheus[Prometheus<br/>metrics and rules]
     monitoringNs --> grafana[Grafana<br/>dashboards]
     monitoringNs --> alertmanager[Alertmanager<br/>alerts]
+    lokiApp --> loggingNs[namespace logging]
+    promtailApp --> loggingNs
+    loggingConfigApp --> loggingPath[k8s/logging]
+    loggingPath --> monitoringNs
+    loggingNs --> loki[Loki<br/>logs]
+    loggingNs --> promtail[Promtail<br/>log shipper]
 
     kyverno -. audits / blocks unsafe manifests .-> hospitalNs
     trivy -. scans workloads and images .-> hospitalNs
     falco -. observes runtime events .-> hospitalNs
     prometheus -. scrapes cluster and workload metrics .-> hospitalNs
     prometheus -. receives Kubernetes metrics .-> traefikNs
+    promtail -. ships pod logs .-> loki
+    grafana -. queries logs .-> loki
     alertmanager -. routes alerts .-> prometheus
 ```
 
@@ -107,12 +122,13 @@ Runtime model:
 5. Trivy Operator scans live cluster workloads and produces vulnerability/config reports.
 6. Falco watches running containers and reports suspicious runtime behavior.
 7. Prometheus collects cluster metrics, Grafana visualizes them, and Alertmanager handles alerts.
+8. Promtail ships pod logs to Loki, and Grafana uses Loki as a log datasource.
 
 The important split is:
 
 ```text
-argocd/security and argocd/monitoring = install/manage tools
-k8s/security and k8s/monitoring       = configure those tools after they exist
+argocd/security, argocd/monitoring, and argocd/logging = install/manage tools
+k8s/security, k8s/monitoring, and k8s/logging          = configure those tools after they exist
 ```
 
 ## Files
@@ -122,6 +138,7 @@ k8s/security and k8s/monitoring       = configure those tools after they exist
 | `hospital-traefik-app.yaml` | Argo CD Application that syncs the Hospital Kubernetes stack from `k8s/base`. |
 | `security/` | Argo CD Applications that install security tools and sync security config from `k8s/security`. |
 | `monitoring/` | Argo CD Applications that install monitoring tools and sync monitoring config from `k8s/monitoring`. |
+| `logging/` | Argo CD Applications that install logging tools and sync logging config from `k8s/logging`. |
 | `SETUP.md` | Step-by-step Argo CD installation notes. |
 | `images/` | Documentation images. |
 
@@ -167,6 +184,9 @@ flowchart LR
   argo --> falco[Apply Falco app]
   argo --> prom[Apply kube-prometheus-stack app]
   prom --> rules[Apply monitoring-rules app]
+  argo --> loki[Apply Loki app]
+  loki --> promtail[Apply Promtail app]
+  promtail --> logcfg[Apply logging-config app]
 ```
 
 ## Apply the Application
@@ -191,6 +211,14 @@ Apply the monitoring Applications:
 ```bash
 kubectl apply -f argocd/monitoring/10-kube-prometheus-stack-app.yaml
 kubectl apply -f argocd/monitoring/20-monitoring-rules-app.yaml
+```
+
+Apply the logging Applications:
+
+```bash
+kubectl apply -f argocd/logging/10-loki-app.yaml
+kubectl apply -f argocd/logging/20-promtail-app.yaml
+kubectl apply -f argocd/logging/30-logging-config-app.yaml
 ```
 
 ## Access the Argo CD UI
@@ -221,10 +249,12 @@ kubectl -n argocd get applications
 kubectl -n argocd describe application hospital-traefik-app
 kubectl -n argocd get application kyverno trivy-operator falco security-namespace-policies
 kubectl -n argocd get application kube-prometheus-stack monitoring-rules
+kubectl -n argocd get application loki promtail logging-config
 kubectl get pods -n hospital
 kubectl get pods -n traefik
 kubectl get pods -n security
 kubectl get pods -n monitoring
+kubectl get pods -n logging
 kubectl get clusterpolicy
 kubectl get vulnerabilityreports -A
 kubectl get prometheusrule -n monitoring

@@ -9,6 +9,7 @@
 ![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-E6522C?logo=prometheus&logoColor=white)
 ![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?logo=grafana&logoColor=white)
 ![Alertmanager](https://img.shields.io/badge/Alertmanager-Alerts-E6522C?logo=prometheus&logoColor=white)
+![Loki](https://img.shields.io/badge/Loki-Logs-F46800?logo=grafana&logoColor=white)
 ![Kyverno](https://img.shields.io/badge/Kyverno-Policy%20as%20Code-326CE5?logo=kubernetes&logoColor=white)
 ![Falco](https://img.shields.io/badge/Falco-Runtime%20Security-00AEC7)
 ![Nexus](https://img.shields.io/badge/Nexus-Artifacts-1B1C30?logo=sonatype&logoColor=white)
@@ -16,7 +17,7 @@
 ![.NET](https://img.shields.io/badge/.NET%209-API-512BD4?logo=dotnet&logoColor=white)
 ![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react&logoColor=black)
 
-This repository is a complete learning-oriented DevSecOps platform for a hospital management application. It combines a React/Vite frontend, an ASP.NET Core 9 backend, Docker, Nexus Repository, SonarQube, Trivy, Amazon ECR, AWS EKS, Terraform, GitHub Actions, Argo CD GitOps, Prometheus, Grafana, Alertmanager, Kyverno, Trivy Operator, and Falco.
+This repository is a complete learning-oriented DevSecOps platform for a hospital management application. It combines a React/Vite frontend, an ASP.NET Core 9 backend, Docker, Nexus Repository, SonarQube, Trivy, Amazon ECR, AWS EKS, Terraform, GitHub Actions, Argo CD GitOps, Prometheus, Grafana, Alertmanager, Loki, Promtail, Kyverno, Trivy Operator, and Falco.
 
 The goal is not only to run the app, but to understand how a modern CI/CD and security delivery flow is assembled end to end.
 
@@ -53,7 +54,7 @@ By walking through this repository, you should be able to explain and operate:
 | Kubernetes runtime | Deployments, Services, namespaces, probes, resources, secrets, network policy, and Kustomize overlays. |
 | Supply chain security | SonarQube, Trivy filesystem/IaC/image scans, Nexus artifact storage, and immutable image tags. |
 | Cluster security | Kyverno admission policies, Trivy Operator cluster reports, and Falco runtime detection. |
-| Observability | Prometheus metrics, Grafana dashboards, Alertmanager, node-exporter, kube-state-metrics, and custom Prometheus rules. |
+| Observability | Prometheus metrics, Grafana dashboards, Alertmanager, Loki logs, Promtail log shipping, node-exporter, kube-state-metrics, and custom Prometheus rules. |
 
 ## Architecture
 
@@ -97,8 +98,14 @@ flowchart TB
   monns --> prometheus[Prometheus metrics]
   monns --> grafana[Grafana dashboards]
   monns --> alertmanager[Alertmanager alerts]
+  argocd --> logapps[Logging GitOps apps]
+  logapps --> logns[logging namespace]
+  logns --> loki[Loki logs]
+  logns --> promtail[Promtail log shipper]
 
   prometheus -. scrape cluster metrics .-> eks
+  promtail -. ship pod logs .-> loki
+  grafana -. query logs .-> loki
   alertmanager -. alert routing .-> prometheus
 ```
 
@@ -143,6 +150,7 @@ flowchart TB
     app[Hospital FE/BE]
     sec[Kyverno + Trivy Operator + Falco]
     mon[Prometheus + Grafana + Alertmanager]
+    log[Loki + Promtail]
   end
 
   ecr --> app
@@ -150,8 +158,10 @@ flowchart TB
   argo --> app
   argo --> sec
   argo --> mon
+  argo --> log
   sec -. protects .-> app
   mon -. observes .-> app
+  log -. collects logs .-> app
 ```
 
 High-level idea:
@@ -160,7 +170,7 @@ High-level idea:
 - EC2 acts as a remote build host. It downloads artifacts from Nexus, builds Docker images, scans them with Trivy, and pushes them to ECR.
 - The workflow updates image tags in `k8s/base/*.yaml`.
 - Argo CD watches Git and syncs the updated manifests to EKS.
-- Argo CD also manages the cluster security and monitoring stacks.
+- Argo CD also manages the cluster security, monitoring, and logging stacks.
 
 ## Folder Responsibility
 
@@ -179,9 +189,11 @@ Examples:
 | `argocd/hospital-traefik-app.yaml` | Argo CD Application that syncs the app from `k8s/base`. |
 | `argocd/security/` | Argo CD Applications that install Kyverno, Trivy Operator, Falco, and sync `k8s/security`. |
 | `argocd/monitoring/` | Argo CD Applications that install kube-prometheus-stack and sync `k8s/monitoring`. |
+| `argocd/logging/` | Argo CD Applications that install Loki, Promtail, and sync `k8s/logging`. |
 | `k8s/base/` | Runtime manifests for the hospital frontend, backend, services, and network policy. |
 | `k8s/security/` | Security namespace and Kyverno policies used after Kyverno is installed. |
 | `k8s/monitoring/` | Monitoring namespace and Prometheus alert rules used after Prometheus Operator is installed. |
+| `k8s/logging/` | Logging namespace and Grafana Loki datasource used after Loki is installed. |
 
 In short:
 
@@ -209,9 +221,11 @@ This split is intentional for learning:
 |-- k8s/base/                 # Namespace, Deployments, Services, NetworkPolicy, Kustomize
 |-- k8s/security/             # Security namespace and Kyverno policy baseline
 |-- k8s/monitoring/           # Monitoring namespace and custom Prometheus alert rules
+|-- k8s/logging/              # Logging namespace and Grafana Loki datasource
 |-- argocd/                   # Argo CD Application manifest
 |-- argocd/security/          # Argo CD Applications for Kyverno, Trivy Operator, and Falco
 |-- argocd/monitoring/        # Argo CD Applications for Prometheus, Grafana, and Alertmanager
+|-- argocd/logging/           # Argo CD Applications for Loki and Promtail
 |-- terraform/                # AWS network and EKS infrastructure as code
 |-- security/                 # SonarQube, Nexus, Trivy, and hardening notes
 |-- .github/workflows/        # GitHub Actions DevSecOps pipeline
@@ -231,6 +245,7 @@ Key operational files:
 | `k8s/base/07-be-deployment.yaml` | Backend Deployment using `ecr-be:<sha>`. |
 | `argocd/hospital-traefik-app.yaml` | Argo CD Application that syncs Kubernetes manifests. |
 | `argocd/monitoring/10-kube-prometheus-stack-app.yaml` | Argo CD Application that installs Prometheus, Grafana, and Alertmanager. |
+| `argocd/logging/10-loki-app.yaml` | Argo CD Application that installs Loki for centralized logs. |
 
 ## Current CI/CD Flow
 
@@ -269,7 +284,7 @@ Main flow:
    - `ecr-be:<github.sha>`
 12. Update image tags in `k8s/base`.
 13. Argo CD detects the Git change and syncs it to EKS.
-14. Cluster security and monitoring continue running as GitOps-managed platform services.
+14. Cluster security, monitoring, and logging continue running as GitOps-managed platform services.
 
 ## GitOps Runtime Flow
 
@@ -282,6 +297,7 @@ sequenceDiagram
   participant K8s as EKS
   participant Sec as Security stack
   participant Mon as Monitoring stack
+  participant Log as Logging stack
 
   Dev->>GH: push code
   GH->>GH: build, test, scan
@@ -290,8 +306,10 @@ sequenceDiagram
   Argo->>K8s: sync hospital app from k8s/base
   Argo->>K8s: sync security apps from argocd/security
   Argo->>K8s: sync monitoring apps from argocd/monitoring
+  Argo->>K8s: sync logging apps from argocd/logging
   Sec-->>K8s: audit policies, scan workloads, detect runtime events
   Mon-->>K8s: collect metrics and evaluate alerts
+  Log-->>K8s: collect pod logs into Loki
 ```
 
 ## Prerequisites
@@ -574,6 +592,16 @@ kubectl -n argocd get application kube-prometheus-stack monitoring-rules
 kubectl get pods -n monitoring
 ```
 
+Apply the logging GitOps objects:
+
+```bash
+kubectl apply -f argocd/logging/10-loki-app.yaml
+kubectl apply -f argocd/logging/20-promtail-app.yaml
+kubectl apply -f argocd/logging/30-logging-config-app.yaml
+kubectl -n argocd get application loki promtail logging-config
+kubectl get pods -n logging
+```
+
 ## Pipeline Readiness Checklist
 
 Before rerunning the workflow, confirm:
@@ -628,6 +656,8 @@ Before rerunning the workflow, confirm:
 | `argocd/security/README.md` | GitOps installation of Kyverno, Trivy Operator, and Falco. |
 | `k8s/monitoring/README.md` | Monitoring namespace and custom Prometheus alert rules. |
 | `argocd/monitoring/README.md` | GitOps installation of Prometheus, Grafana, and Alertmanager. |
+| `k8s/logging/README.md` | Logging namespace, Loki datasource, and S3 storage plan. |
+| `argocd/logging/README.md` | GitOps installation of Loki and Promtail. |
 | `terraform/README.md` | Terraform module layout and workflow. |
 | `terraform/environments/dev/README.md` | Dev EKS environment setup. |
 | `terraform/environments/prod/README.md` | Production-oriented Terraform setup. |
