@@ -72,6 +72,13 @@ spec:
 
         gateway:
           enabled: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 150m
+              memory: 128Mi
 
         chunksCache:
           enabled: false
