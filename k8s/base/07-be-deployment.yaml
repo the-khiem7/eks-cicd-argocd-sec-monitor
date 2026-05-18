@@ -42,6 +42,7 @@ spec:
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
+            runAsGroup: 0
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
@@ -104,8 +105,8 @@ spec:
 
           resources:
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 250m
+              memory: 384Mi
             limits:
-              cpu: "2"
-              memory: 1Gi
+              cpu: "1"
+              memory: 768Mi
