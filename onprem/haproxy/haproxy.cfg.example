@@ -32,6 +32,6 @@ backend traefik_nodes_http
     balance roundrobin
     option tcp-check
     # Replace these IPs with Kubernetes worker node IPs that run Traefik.
+    # Do not route to the control-plane node unless Traefik is explicitly scheduled there.
     server worker1 10.0.1.11:30080 check
     server worker2 10.0.1.12:30080 check
-    server worker3 10.0.1.13:30080 check

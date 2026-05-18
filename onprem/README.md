@@ -56,9 +56,7 @@ kubectl apply -f onprem/traefik/10-app-gateway-routes.example.yaml
 
 ```bash
 cd onprem/haproxy
-cp .env.example .env
-cp haproxy.cfg.example haproxy.cfg
-# Edit haproxy.cfg and replace the worker backend IPs.
+# Edit haproxy.cfg only if the worker backend IPs are different.
 docker compose up -d
 ```
 

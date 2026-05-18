@@ -8,7 +8,7 @@ This folder runs HAProxy as the public edge load balancer for an on-prem Kuberne
 |---|---|
 | `docker-compose.yml` | Runs `haproxy:2.9` with host ports 80 and 443. |
 | `haproxy.cfg.example` | Manual HAProxy config example. Copy it to `haproxy.cfg` and edit backend IPs. |
-| `haproxy.cfg` | Local runtime config, ignored by Git. |
+| `haproxy.cfg` | Ready-to-run HTTP config. Edit backend IPs when node IPs change. |
 | `.env.example` | Runtime settings template. |
 | `certs/` | Local HAProxy PEM certificates. Do not commit real keys. |
 
@@ -16,19 +16,19 @@ This folder runs HAProxy as the public edge load balancer for an on-prem Kuberne
 
 ```bash
 cd onprem/haproxy
-cp .env.example .env
-cp haproxy.cfg.example haproxy.cfg
 ```
 
-Edit `haproxy.cfg`:
+Edit `haproxy.cfg` only if your node IPs are different:
 
-- Change the certificate path if your domain is not `benhvien.teamdevops.shop`.
-- Replace `server worker1`, `server worker2`, and `server worker3` with your Kubernetes worker IPs.
+- Replace `server worker1` and `server worker2` with your Kubernetes worker IPs.
+- Do not add the control-plane IP unless Traefik is explicitly scheduled on that node.
 - Keep port `30080` unless you changed `onprem/traefik/04-traefik-nodeport-service.yaml`.
 
 ## TLS
 
-HAProxy expects a combined PEM file:
+The committed `haproxy.cfg` is HTTP-only so HAProxy can start before a TLS certificate exists.
+
+When you want HTTPS, add a `frontend https_front` section and point it at a combined PEM file:
 
 ```text
 onprem/haproxy/certs/<domain>.pem
