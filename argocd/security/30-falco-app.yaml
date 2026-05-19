@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://falcosecurity.github.io/charts
     chart: falco
-    targetRevision: ">=0.0.0"
+    targetRevision: "8.0.3"
     helm:
       releaseName: falco
       values: |

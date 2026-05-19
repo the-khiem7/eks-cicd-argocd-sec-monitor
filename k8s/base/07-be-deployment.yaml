@@ -34,15 +34,13 @@ spec:
             - -c
             - |
               mkdir -p /uploads/images
-              chown -R 1654:2000 /uploads
-              chmod -R 775 /uploads
           volumeMounts:
             - name: be-uploads
               mountPath: /uploads
           securityContext:
-            runAsUser: 0
-            runAsNonRoot: false
-            runAsGroup: 0
+            runAsUser: 1654
+            runAsNonRoot: true
+            runAsGroup: 2000
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
