@@ -7,7 +7,7 @@ metadata:
     policies.kyverno.io/category: Pod Security
     policies.kyverno.io/severity: medium
 spec:
-  validationFailureAction: Audit
+  validationFailureAction: Enforce
   background: true
   rules:
     - name: run-as-non-root
