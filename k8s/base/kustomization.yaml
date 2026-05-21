@@ -8,3 +8,5 @@ resources:
   - 10-network-policy.yaml
   - 11-fe-hpa.yaml
   - 12-be-hpa.yaml
+  - be-db-externalsecret.yaml
+  - ecr-registry-externalsecret.yaml
