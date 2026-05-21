@@ -4,7 +4,8 @@ This folder provides the on-premise ingress path for the hospital platform. Use 
 
 ```text
 Internet
-  -> HAProxy host, ports 80/443
+  -> HAProxy Edge Server, ports 80/443
+  -> Consul-backed dynamic HAProxy backend discovery
   -> Kubernetes worker NodePort 30080
   -> Traefik DaemonSet
   -> Gateway API HTTPRoute
@@ -16,7 +17,7 @@ Internet
 | Path | Purpose |
 |---|---|
 | `traefik/` | Kubernetes manifests that install Traefik as a NodePort Gateway API controller. |
-| `haproxy/` | Docker Compose HAProxy edge load balancer with a manual config example. |
+| `haproxy/` | Docker Compose HAProxy edge load balancer with Consul, Consul Template, and Kubernetes node auto-discovery. |
 
 ## When To Use This
 
@@ -52,11 +53,12 @@ kubectl apply -k k8s/overlays/prod
 kubectl apply -f onprem/traefik/10-app-gateway-routes.example.yaml
 ```
 
-5. Run HAProxy on the edge host.
+5. Run HAProxy on the Edge Server.
 
 ```bash
 cd onprem/haproxy
-# Edit haproxy.cfg only if the worker backend IPs are different.
+cp .env.example .env
+# Put a kubeconfig with get/list/watch nodes permission at kubeconfig/config.
 docker compose up -d
 ```
 
@@ -67,7 +69,8 @@ docker compose up -d
 | DNS | Point your domain to the HAProxy host public IP. |
 | HAProxy inbound | Open TCP `80` and `443` to users. |
 | Worker inbound | Open TCP `30080` from the HAProxy host to Kubernetes workers. |
-| Worker IPs | Add Kubernetes worker IPs manually to `onprem/haproxy/haproxy.cfg`. |
+| Kubernetes API | The Edge Server kubeconfig must reach the Kubernetes API and read nodes. |
+| Worker IPs | Discovered automatically from Ready Kubernetes nodes and registered in Consul. |
 | TLS | Put HAProxy PEM certificates in `onprem/haproxy/certs/`. |
 
 ## Verification
@@ -77,7 +80,8 @@ kubectl -n traefik get ds,svc,pods -o wide
 kubectl get gateway,httproute -A
 curl -I http://<your-domain>
 curl -IL https://<your-domain>
-docker exec haproxy-alb haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg
+docker compose -f onprem/haproxy/docker-compose.yml logs k8s-discovery
+docker exec haproxy-alb haproxy -c -f /usr/local/etc/haproxy/generated/haproxy.cfg
 ```
 
 Only HAProxy should terminate TLS and redirect HTTP to HTTPS. Traefik stays HTTP-only behind HAProxy.
