@@ -16,7 +16,7 @@ replicas:
 images:
   - name: 606030503959.dkr.ecr.us-east-1.amazonaws.com/ecr-fe
     newName: 606030503959.dkr.ecr.us-east-1.amazonaws.com/ecr-fe
-    newTag: 89a3e9b4a7c43a2ae0d43a6128a09a45b54e6dcb
+    newTag: 5dd0f3e7784de50e8d194db66fcc4f8bf6ec2c55
   - name: 606030503959.dkr.ecr.us-east-1.amazonaws.com/ecr-be
     newName: 606030503959.dkr.ecr.us-east-1.amazonaws.com/ecr-be
-    newTag: 89a3e9b4a7c43a2ae0d43a6128a09a45b54e6dcb
+    newTag: 5dd0f3e7784de50e8d194db66fcc4f8bf6ec2c55
