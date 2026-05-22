@@ -46,3 +46,5 @@ k8s/secrets/*.secret
 Thumbs.db
 .vscode/
 .idea/
+.mcp.json
+.code-review-graph/
