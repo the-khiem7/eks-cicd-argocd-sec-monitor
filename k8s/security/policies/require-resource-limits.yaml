@@ -16,6 +16,16 @@ spec:
           - resources:
               kinds:
                 - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - cattle-system
+                - external-secrets
+                - argocd
+                - ingress-nginx
+                - security
       validate:
         message: "CPU and memory requests and limits are required."
         pattern:

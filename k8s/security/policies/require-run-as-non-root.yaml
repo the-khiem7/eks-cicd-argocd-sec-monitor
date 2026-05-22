@@ -23,6 +23,9 @@ spec:
                 - cattle-system
                 - ingress-nginx
                 - kube-system
+                - external-secrets
+                - argocd
+                - security
       validate:
         message: "Containers should run as a non-root user."
         anyPattern:
