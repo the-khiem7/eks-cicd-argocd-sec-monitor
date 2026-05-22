@@ -6,4 +6,6 @@ resources:
   - policies/disallow-privileged-containers.yaml
   - policies/require-run-as-non-root.yaml
   - policies/require-resource-limits.yaml
+  - eso/cluster-secret-store.yaml
+
 
